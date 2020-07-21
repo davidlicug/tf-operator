@@ -41,6 +41,8 @@ type ServerOption struct {
 	// Maximum burst for throttle.
 	// If it's zero, the created RESTClient will use DefaultBurst: 10.
 	Burst int
+	Bport int
+	Eport int
 }
 
 // NewServerOption creates a new CMServer with a default config.
@@ -80,4 +82,6 @@ It can be set to "0" to disable the metrics serving.`)
 
 	fs.IntVar(&s.QPS, "qps", 5, "QPS indicates the maximum QPS to the master from this client.")
 	fs.IntVar(&s.Burst, "burst", 10, "Maximum burst for throttle.")
+	fs.IntVar(&s.Bport, "bport", 30000, "Minimum port.")
+	fs.IntVar(&s.Eport, "eport", 32767, "Maximum port.")
 }

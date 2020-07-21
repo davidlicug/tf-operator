@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"k8s.io/apimachinery/pkg/runtime"
+	"strings"
 )
 
 const (
@@ -92,10 +93,36 @@ func (tc *TFController) addTFJob(obj interface{}) {
 	msg := fmt.Sprintf("TFJob %s is created.", tfJob.Name)
 	logger := tflogger.LoggerForJob(tfJob)
 	logger.Info(msg)
+	mport := tc.portAllocator.Allocate(tfJob)
+	var s string
+	if len(mport) > 0 {
+		for role := range tfJob.Spec.TFReplicaSpecs  {
+			var portStr string
+			rtype := strings.ToLower(string(role))
+			for _, p := range mport[rtype] {
+				portStr += fmt.Sprintf("%d,", p.port)
+			}
+			if len(portStr) > 0 {
+				portStr = portStr[:len(portStr)-1]
+			}
+			if tfJob.Annotations == nil {
+				tfJob.Annotations = make(map[string]string)
+			}
+			tfJob.Annotations[rtype] = portStr
+			s += portStr + ","
+		}
+	}
+	logger.Infof("Port allocator allocate port:%s for the TFJob:%#v\n", s, tfJob)
 
 	// Add a created condition.
 	err = updateTFJobConditions(tfJob, common.JobCreated, tfJobCreatedReason, msg)
 	if err != nil {
+		if len(mport) > 0 {
+			for role := range tfJob.Spec.TFReplicaSpecs {
+				rtype := strings.ToLower(string(role))
+				tc.portAllocator.UndoAllocate(mport[string(rtype)])
+			}
+		}
 		logger.Errorf("Append tfJob condition error: %v", err)
 		return
 	}
@@ -103,6 +130,12 @@ func (tc *TFController) addTFJob(obj interface{}) {
 	// Convert from tfjob object
 	err = unstructuredFromTFJob(obj, tfJob)
 	if err != nil {
+		if len(mport) > 0 {
+			for role := range tfJob.Spec.TFReplicaSpecs {
+				rtype := strings.ToLower(string(role))
+				tc.portAllocator.UndoAllocate(mport[string(rtype)])
+			}
+		}
 		logger.Errorf("Failed to convert the obj: %v", err)
 		return
 	}
