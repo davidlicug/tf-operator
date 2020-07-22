@@ -112,12 +112,29 @@ func genClusterSpec(tfjob *tfv1alpha2.TFJob) (ClusterSpec, error) {
 		if err != nil {
 			return nil, err
 		}
-		for i := int32(0); i < *spec.Replicas; i++ {
-			host := fmt.Sprintf("%s:%d", jobcontroller.GenGeneralName(tfjob.Name, rt, fmt.Sprintf("%d", i)), port)
-			replicaNames = append(replicaNames, host)
+		if spec.Template.Spec.HostNetwork && port == tfv1alpha2.DefaultPort {
+			for i := int32(0); i < *spec.Replicas; i++ {
+				if portStr, ok := tfjob.Annotations[rt]; ok {
+					ports := strings.Split(portStr, ",")
+					if i < int32(len(ports)){
+						value, _ := strconv.Atoi(ports[i])
+						if value != 0 {
+							port = int32(value)
+						}
+					}
+				}
+				host := fmt.Sprintf("%s:%d", jobcontroller.GenGeneralName(tfjob.Name, rt, fmt.Sprintf("%d", i)), port)
+				replicaNames = append(replicaNames, host)
+			}
+			clusterSpec[rt] = replicaNames
+		}else {
+			for i := int32(0); i < *spec.Replicas; i++ {
+				host := fmt.Sprintf("%s:%d", jobcontroller.GenGeneralName(tfjob.Name, rt, fmt.Sprintf("%d", i)), port)
+				replicaNames = append(replicaNames, host)
+			}
+			clusterSpec[rt] = replicaNames
 		}
 
-		clusterSpec[rt] = replicaNames
 	}
 
 	return clusterSpec, nil

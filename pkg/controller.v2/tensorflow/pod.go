@@ -134,6 +134,20 @@ func (tc *TFController) createNewPod(tfjob *tfv1alpha2.TFJob, rt, index string, 
 
 	// Set name for the template.
 	podTemplate.Name = jobcontroller.GenGeneralName(tfjob.Name, rt, index)
+	if podTemplate.Spec.HostNetwork {
+		for i, container := range podTemplate.Spec.Containers {
+			for j, port := range container.Ports {
+				if port.Name == tfv1alpha2.DefaultPortName && port.ContainerPort == tfv1alpha2.DefaultPort{
+					if pstr, ok := tfjob.Annotations[rt]; ok {
+						port := strings.Split(pstr, ",")
+						in, _ := strconv.Atoi(index)
+						p, _ := strconv.Atoi(port[in])
+						podTemplate.Spec.Containers[i].Ports[j].ContainerPort = int32(p)
+					}
+				}
+			}
+		}
+	}
 
 	if podTemplate.Labels == nil {
 		podTemplate.Labels = make(map[string]string)

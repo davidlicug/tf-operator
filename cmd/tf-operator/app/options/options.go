@@ -27,6 +27,8 @@ type ServerOption struct {
 	GCInterval           time.Duration
 	JsonLogFormat        bool
 	EnableGangScheduling bool
+	Bport int
+	Eport int
 }
 
 // NewServerOption creates a new CMServer with a default config.
@@ -44,4 +46,6 @@ func (s *ServerOption) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&s.ControllerConfigFile, "controller-config-file", "", "Path to file containing the controller config.")
 	fs.BoolVar(&s.JsonLogFormat, "json-log-format", true, "Set true to use json style log format. Set false to use plaintext style log format")
 	fs.BoolVar(&s.EnableGangScheduling, "enable-gang-scheduling", false, "Set true to enable gang scheduling by kube-arbitrator.")
+	fs.IntVar(&s.Bport, "bport", 30000, "Minimum port.")
+	fs.IntVar(&s.Eport, "eport", 32767, "Maximum port.")
 }

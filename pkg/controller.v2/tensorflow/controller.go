@@ -69,6 +69,8 @@ var (
 type TFController struct {
 	jobcontroller.JobController
 
+	portAllocator *PortAllocator
+
 	// tfJobClientSet is a clientset for CRD TFJob.
 	tfJobClientSet tfjobclientset.Interface
 
@@ -117,6 +119,8 @@ func NewTFController(
 	jc := jobcontroller.NewJobController(tc, metav1.Duration{Duration: 15 * time.Second},
 		option.EnableGangScheduling, kubeClientSet, kubeInformerFactory, tfv1alpha2.Plural)
 	tc.JobController = jc
+	jp := NewPortAllocator(int32(option.Bport), int32(option.Eport), kubeInformerFactory)
+	tc.portAllocator = jp
 	// Set sync handler.
 	tc.syncHandler = tc.syncTFJob
 	tc.updateStatusHandler = tc.updateTFJobStatus
@@ -187,6 +191,11 @@ func (tc *TFController) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	if ok := cache.WaitForCacheSync(stopCh, tc.ServiceInformerSynced); !ok {
 		return fmt.Errorf("failed to wait for service caches to sync")
+	}
+
+	// Run the Port Allocator
+	if err := tc.portAllocator.Run(stopCh); err != nil {
+		return fmt.Errorf("failed to allocate port for tfjobd")
 	}
 
 	log.Infof("Starting %v workers", threadiness)
